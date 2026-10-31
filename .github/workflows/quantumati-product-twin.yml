@@ -1,0 +1,33 @@
+name: QuantumATi Product Twin and Evidence Checks
+on:
+  push:
+    branches:
+      - feature/quantumati-product-twin-v1
+    paths:
+      - 'extensions/quantumati-control-center/**'
+      - '.github/workflows/quantumati-product-twin.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  product-twin:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout isolated branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          for file in extensions/quantumati-control-center/*.cjs extensions/quantumati-control-center/test/*.cjs; do
+            node --check "$file"
+          done
+      - name: Focused tests
+        run: node --test extensions/quantumati-control-center/test/*.test.cjs
