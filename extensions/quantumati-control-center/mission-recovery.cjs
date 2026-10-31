@@ -39,6 +39,10 @@ function missionFolder(storeDir, missionId) {
   const folder = path.join(storeDir, missionId);
   existingDir(storeDir);
   existingDir(folder);
+  if (process.platform !== 'win32') {
+    check((fs.statSync(storeDir).mode & 0o077) === 0, 'Mission store must remain private');
+    check((fs.statSync(folder).mode & 0o077) === 0, 'Mission folder must remain private');
+  }
   return folder;
 }
 function syncDirectory(folder) {
@@ -50,6 +54,7 @@ function safeReadEventFile(folder, name) {
   const file = path.join(folder, name);
   const st = fs.lstatSync(file);
   check(st.isFile() && !st.isSymbolicLink() && st.size > 0 && st.size <= MAX_EVENT_BYTES, 'Mission history integrity error: invalid event file');
+  if (process.platform !== 'win32') check((st.mode & 0o077) === 0, 'Mission history private permission error');
   const contents = fs.readFileSync(file, 'utf8');
   let event;
   try { event = JSON.parse(contents); } catch { throw new Error('Mission history integrity error: invalid JSON'); }
