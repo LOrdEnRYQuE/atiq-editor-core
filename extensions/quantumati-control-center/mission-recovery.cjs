@@ -16,6 +16,7 @@ const MAX_EVENTS = 512;
 const MAX_EVENT_BYTES = 32 * 1024;
 const MAX_SOURCE_BYTES = 2 * 1024 * 1024;
 const LEASE_MS = 60_000;
+const CONTENTION_WAIT = new Int32Array(new SharedArrayBuffer(4));
 
 const digest = bytes => createHash('sha256').update(bytes).digest('hex');
 const check = (valid, message) => { if (!valid) throw new Error(message); };
@@ -178,11 +179,13 @@ function load(storeDir, missionId) {
   return { folder, events, state: reconstruct(events, missionId) };
 }
 function transact(storeDir, missionId, decide) {
-  for (let attempt = 0; attempt < 12; attempt++) {
+  for (let attempt = 0; attempt < 96; attempt++) {
     const loaded = load(storeDir, missionId);
     const choice = decide(loaded.state);
     if (!choice.event) return choice.output;
     if (appendCAS(loaded.folder, loaded.events, choice.event)) return choice.output;
+    // Avoid hot-spin contention when several workers attempt the same sequence.
+    Atomics.wait(CONTENTION_WAIT, 0, 0, 2 + Math.floor(Math.random() * 8));
   }
   throw new Error('Concurrent mission update: retry later');
 }
