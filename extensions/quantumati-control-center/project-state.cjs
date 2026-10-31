@@ -1,13 +1,15 @@
 'use strict';
 const fs = require('node:fs');
 const path = require('node:path');
+const { inspectProductTwin } = require('./product-twin.cjs');
 
 /** Read-only inventory, not a verification pass. */
 function inspectProject(workspaceRoot) {
   const base = {
     status: 'NO_WORKSPACE', projectName: 'No project open',
     scripts: [], evidence: [], warnings: [],
-    verification: { build: 'NOT_RUN', tests: 'NOT_RUN' }
+    verification: { build: 'NOT_RUN', tests: 'NOT_RUN' },
+    twin: { status: 'NO_MODEL', capabilities: [], warnings: [], verification: 'NOT_VERIFIED' }
   };
   if (!workspaceRoot) return base;
   let directory;
@@ -34,6 +36,7 @@ function inspectProject(workspaceRoot) {
       result.warnings.push('package.json is unreadable or invalid; no scripts inferred');
     }
   }
+  result.twin = inspectProductTwin(directory);
   return result;
 }
 module.exports = { inspectProject };
