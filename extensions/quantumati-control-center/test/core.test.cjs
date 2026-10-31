@@ -1,0 +1,10 @@
+const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
+const {inspectProject}=require('../project-state.cjs');
+const {decideAction}=require('../permission-policy.cjs');
+const {renderDashboardHtml}=require('../dashboard.cjs');
+test('no workspace never claims tests',()=>{const s=inspectProject(null);assert.equal(s.status,'NO_WORKSPACE');assert.equal(s.verification.tests,'NOT_RUN')});
+test('manifest inspection is read only',()=>{const p=fs.mkdtempSync(path.join(os.tmpdir(),'qati-'));try{fs.writeFileSync(path.join(p,'package.json'),JSON.stringify({name:'demo',scripts:{test:'node --test'}}));const s=inspectProject(p);assert.equal(s.projectName,'demo');assert.deepEqual(s.scripts,['test']);assert.equal(s.verification.build,'NOT_RUN')}finally{fs.rmSync(p,{recursive:true,force:true})}});
+test('invalid manifest signals partial evidence',()=>{const p=fs.mkdtempSync(path.join(os.tmpdir(),'qati-'));try{fs.writeFileSync(path.join(p,'package.json'),'{');assert.equal(inspectProject(p).status,'PARTIAL')}finally{fs.rmSync(p,{recursive:true,force:true})}});
+test('denies arbitrary external and unknown commands',()=>{const scope={workspaceRoot:'/tmp/nowhere'};assert.equal(decideAction({kind:'exec'},scope).decision,'DENY');assert.equal(decideAction({kind:'publish'},scope).decision,'REQUIRE_APPROVAL')});
+test('does not authorize writes automatically',()=>{const p=fs.mkdtempSync(path.join(os.tmpdir(),'qati-'));try{assert.equal(decideAction({kind:'write',target:p}, {workspaceRoot:p}).decision,'REQUIRE_APPROVAL')}finally{fs.rmSync(p,{recursive:true,force:true})}});
+test('escapes untrusted HTML in UI',()=>{const html=renderDashboardHtml({status:'INSPECTED',projectName:'<script>1</script>',scripts:[],evidence:[],warnings:[],verification:{tests:'NOT_RUN',build:'NOT_RUN'}});assert.doesNotMatch(html,/<script>1/);assert.match(html,/&lt;script&gt;/)});

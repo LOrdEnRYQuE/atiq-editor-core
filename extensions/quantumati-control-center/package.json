@@ -1,0 +1,21 @@
+{
+  "name": "quantumati-control-center",
+  "displayName": "QuantumATi Project Control Center",
+  "description": "Product-first read-only project control center for Code-OSS.",
+  "version": "0.1.0",
+  "publisher": "quantumati",
+  "private": true,
+  "license": "MIT",
+  "type": "commonjs",
+  "engines": { "vscode": "^1.110.0" },
+  "main": "./extension.cjs",
+  "activationEvents": ["onStartupFinished"],
+  "extensionKind": ["workspace"],
+  "contributes": {
+    "commands": [
+      {"command":"quantumati.openControlCenter","title":"QuantumATi: Open Project Control Center"},
+      {"command":"quantumati.refreshControlCenter","title":"QuantumATi: Refresh Project Inspection"}
+    ]
+  },
+  "scripts": {"test":"node --test test/*.test.cjs"}
+}
