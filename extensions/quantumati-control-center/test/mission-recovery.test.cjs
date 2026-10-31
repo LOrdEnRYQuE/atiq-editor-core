@@ -212,3 +212,19 @@ test('mission store refuses shared permissions',()=>temp(ctx=>{
   fs.chmodSync(ctx.storeDir,0o777);
   assert.throws(()=>start(ctx),/private/);
 }));
+
+
+test('private vault permissions are checked again on every resume',()=>temp(ctx=>{
+  if(process.platform==='win32')return;
+  start(ctx);
+  fs.chmodSync(ctx.storeDir,0o755);
+  assert.throws(()=>inspectMission({storeDir:ctx.storeDir,missionId:'demo-mission'}),/private/i);
+  assert.throws(()=>runMission({storeDir:ctx.storeDir,missionId:'demo-mission',nowMs:NOW}),/private/i);
+}));
+
+test('event files with broadened access stop mission replay',()=>temp(ctx=>{
+  if(process.platform==='win32')return;
+  start(ctx);
+  fs.chmodSync(path.join(ctx.storeDir,'demo-mission','000001.event'),0o644);
+  assert.throws(()=>inspectMission({storeDir:ctx.storeDir,missionId:'demo-mission'}),/private|permission/i);
+}));
