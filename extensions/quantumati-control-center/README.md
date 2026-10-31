@@ -22,3 +22,14 @@ The default Code-OSS branch, production systems, and published packages are unch
 The `product-twin.cjs` adapter accepts an optional `.quantumati/product.json` capability model, correlates declared sources with SHA-256 fingerprints, and marks recorded evidence as `STALE` when those sources change. The result is presented in **Project Intelligence** and **Verification Center**.
 
 See [PRODUCT_TWIN.md](PRODUCT_TWIN.md) for the schema, supported states, security limits and test command. No untrusted report can grant `VERIFIED`; the trusted evidence runner is not built. The Code-OSS desktop runtime is not yet verified.
+
+
+## Compatibility Preflight (read-only)
+
+Run from the repository root:
+
+    node extensions/quantumati-control-center/compatibility-preflight.cjs 1.144.0
+
+This emits a JSON report comparing the declared Code-OSS version with an **explicit reference version** and checking static branding, extension engine, known upstream-coupled CI configuration, and registry metadata. It does not update files or make network requests. Privacy, actual extension startup, and desktop release readiness remain **UNVERIFIED** until independently tested.
+
+See [the dated Code-OSS compatibility audit](../../docs/audits/2026-11-01-quantumati-compatibility-baseline.md) for findings and the staged upgrade plan. Do not interpret passing Node tests as a desktop build or release certification.
