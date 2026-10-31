@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "capabilities": [
+    {
+      "id": "project-control-center",
+      "title": "Mission Control UI shell",
+      "sources": [
+        "extensions/quantumati-control-center/dashboard.cjs",
+        "extensions/quantumati-control-center/extension.cjs"
+      ]
+    },
+    {
+      "id": "workspace-inspection",
+      "title": "Read-only project inspection",
+      "sources": [
+        "extensions/quantumati-control-center/project-state.cjs"
+      ]
+    },
+    {
+      "id": "product-digital-twin",
+      "title": "Product Digital Twin source model",
+      "sources": [
+        "extensions/quantumati-control-center/product-twin.cjs"
+      ]
+    },
+    {
+      "id": "evidence-staleness",
+      "title": "Evidence fingerprint and stale-state detection",
+      "sources": [
+        "extensions/quantumati-control-center/product-twin.cjs",
+        "extensions/quantumati-control-center/test/twin.test.cjs"
+      ]
+    }
+  ]
+}
