@@ -1,0 +1,37 @@
+name: QuantumATi Compatibility Preflight
+on:
+  push:
+    branches:
+      - feature/quantumati-compatibility-preflight-v1
+    paths:
+      - 'extensions/quantumati-control-center/**'
+      - '.github/workflows/quantumati-compatibility-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout isolated branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax checks
+        run: |
+          for file in extensions/quantumati-control-center/*.cjs extensions/quantumati-control-center/test/*.cjs; do
+            node --check "$file"
+          done
+      - name: Run focused extension tests
+        run: node --test extensions/quantumati-control-center/test/*.test.cjs
+      - name: Audit live repository metadata
+        run: |
+          node extensions/quantumati-control-center/compatibility-preflight.cjs 1.144.0 > "$RUNNER_TEMP/quantumati-preflight.json"
+          node -e 'const fs=require("node:fs");const r=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));const s=Object.fromEntries(r.checks.map(x=>[x.id,x.status]));if(r.releaseReady!==false||s.core_version!=="OUTDATED"||s.branding!=="NOT_BRANDED"||s.ci_permissions!=="UPSTREAM_COUPLING"||s.privacy!=="UNVERIFIED"||s.desktop_build!=="UNVERIFIED"){console.error("Unexpected baseline, inspect report");process.exit(1)}console.log("Confirmed baseline: Code-OSS version outdated, branding incomplete, inherited workflow coupled upstream; privacy & desktop unverified")' "$RUNNER_TEMP/quantumati-preflight.json"
