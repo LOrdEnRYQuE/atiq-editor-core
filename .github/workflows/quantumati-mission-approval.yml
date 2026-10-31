@@ -1,0 +1,31 @@
+name: QuantumATi Mission Approval Broker Checks
+on:
+  push:
+    branches:
+      - feature/quantumati-mission-approval-broker-v1
+    paths:
+      - 'extensions/quantumati-control-center/**'
+      - '.github/workflows/quantumati-mission-approval.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  mission-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax check
+        run: |
+          for file in extensions/quantumati-control-center/*.cjs extensions/quantumati-control-center/test/*.cjs; do
+            node --check "$file"
+          done
+      - name: Run extension tests
+        run: node --test extensions/quantumati-control-center/test/*.test.cjs
