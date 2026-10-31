@@ -15,3 +15,10 @@ Run pure Node tests: `node --test extensions/quantumati-control-center/test/*.te
 OpenCode integration, executable agents, true sandbox isolation, trusted permission enforcement, native QuantumATi-branded build, and end-to-end desktop startup verification.
 
 The default Code-OSS branch, production systems, and published packages are unchanged.
+
+
+## Product Digital Twin — read-only prototype
+
+The `product-twin.cjs` adapter accepts an optional `.quantumati/product.json` capability model, correlates declared sources with SHA-256 fingerprints, and marks recorded evidence as `STALE` when those sources change. The result is presented in **Project Intelligence** and **Verification Center**.
+
+See [PRODUCT_TWIN.md](PRODUCT_TWIN.md) for the schema, supported states, security limits and test command. No untrusted report can grant `VERIFIED`; the trusted evidence runner is not built. The Code-OSS desktop runtime is not yet verified.
