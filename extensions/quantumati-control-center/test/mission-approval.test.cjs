@@ -95,7 +95,7 @@ test('arbitrary shell commands, privilege escalation, and unknown actions are de
  for(const kind of ['shell','sudo','exec','change-policy','unknown'])assert.equal(verdict({kind:'shell'===kind?'shell':kind,command:'true'},grant,runtime),'DENY',kind);
 }));
 test('a forged allow-all flag cannot override policy restrictions',()=>fixture(({grant,runtime,target})=>{
- assert.equal(verdict({kind:'delete',target,acceptAll:true}, {...grant,acceptAll:true,allowedKinds:['delete','shell','edit']},runtime),'REQUIRE_APPROVAL');
+ assert.equal(verdict({kind:'delete',target,acceptAll:true}, {...grant,acceptAll:true,allowedKinds:['delete','shell','edit']},runtime),'DENY');
 }));
 test('no valid grant cannot be created by untrusted action fields',()=>fixture(({target,runtime})=>{
  assert.notEqual(verdict({kind:'edit',target,expectedSha256:hash('version one'),grant:{missionId:runtime.missionId}},undefined,runtime),'AUTO_ELIGIBLE');
