@@ -28,10 +28,12 @@ function decideAction(action, scope) {
       ? {decision:'ALLOW',reason:'Read-only workspace inspection'}
       : {decision:'DENY',reason:'Outside permitted workspace or unresolved path'};
   }
-  if (action.kind === 'write' || action.kind === 'delete')
+  if (action.kind === 'write' || action.kind === 'delete') {
+    if (isSecret(action.target)) return {decision:'DENY',reason:'Sensitive path'};
     return within(action.target, scope.workspaceRoot)
       ? {decision:'REQUIRE_APPROVAL',reason:'Workspace mutation requires executor and approval'}
       : {decision:'DENY',reason:'No trusted isolated executor available in this slice'};
+  }
   if (action.kind === 'publish' || action.kind === 'external' || action.kind === 'git-push')
     return {decision:'REQUIRE_APPROVAL',reason:'External side effect requires explicit authorization'};
   return {decision:'DENY',reason:'Action not supported by read-only prototype'};
