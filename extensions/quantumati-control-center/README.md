@@ -33,3 +33,14 @@ Run from the repository root:
 This emits a JSON report comparing the declared Code-OSS version with an **explicit reference version** and checking static branding, extension engine, known upstream-coupled CI configuration, and registry metadata. It does not update files or make network requests. Privacy, actual extension startup, and desktop release readiness remain **UNVERIFIED** until independently tested.
 
 See [the dated Code-OSS compatibility audit](../../docs/audits/2026-11-01-quantumati-compatibility-baseline.md) for findings and the staged upgrade plan. Do not interpret passing Node tests as a desktop build or release certification.
+
+
+## Durable Missions v1 — read-only prototype
+
+The `mission-recovery.cjs` module persists bounded read-only missions and SHA-256 evidence, supports recovery after a separate Node process restarts, and handles concurrent readers, expirations, changed files and private event-store permissions.
+
+Run: `node --test extensions/quantumati-control-center/test/*.test.cjs`
+
+[Architecture, test scenarios and limitations](../../docs/specs/2026-11-01-quantumati-durable-missions-v1.md).
+
+**Not yet available:** authenticated human approvals, real autonomous code edits, trusted sandboxing, live AI agents, background execution when a laptop is off, and an end-to-end Code-OSS desktop experience. The library itself never executes paid, network or destructive operations.
