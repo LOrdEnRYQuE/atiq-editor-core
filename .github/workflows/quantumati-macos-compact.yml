@@ -1,0 +1,180 @@
+name: QuantumATi macOS Intel Compact Artifact Audit
+on:
+  push:
+    branches:
+      - feature/quantumati-macos-compact-v1
+    paths:
+      - '.github/workflows/quantumati-macos-compact.yml'
+      - 'docs/audits/2026-11-01-quantumati-macos-footprint.md'
+  workflow_dispatch:
+    inputs:
+      baseline_run_id:
+        description: 'Successful QuantumATi macOS Intel preview run with a verified ZIP'
+        required: true
+        type: string
+        default: '41320013356'
+permissions:
+  actions: read
+  contents: read
+concurrency:
+  group: quantumati-compact-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  inspect-repack-and-verify:
+    runs-on: macos-15-intel
+    timeout-minutes: 35
+    env:
+      BASELINE_RUN_ID: ${{ inputs.baseline_run_id || '41320013356' }}
+    steps:
+      # Intentionally no source checkout, Node dependencies or Code-OSS rebuild:
+      # optimization works on the verified published app rather than a 6-7 GB build tree.
+      - name: Download previously verified macOS Intel artifact
+        uses: actions/download-artifact@v4
+        with:
+          repository: ${{ github.repository }}
+          run-id: ${{ env.BASELINE_RUN_ID }}
+          name: QuantumATi-Studio-macOS-Intel-preview
+          github-token: ${{ github.token }}
+          path: baseline
+
+      - name: Validate published archive checksum and inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p compact extracted verified
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib,zipfile
+          root=Path('baseline')
+          archive=root/'QuantumATi-Studio-macOS-Intel-preview.zip'
+          checksum=root/'QuantumATi-Studio-macOS-Intel-preview.zip.sha256'
+          if not archive.is_file() or not checksum.is_file():
+              raise SystemExit('Missing the verified preview ZIP or SHA-256')
+          digest=hashlib.file_digest(archive.open('rb'),'sha256').hexdigest()
+          recorded=checksum.read_text().split()[0].lower()
+          if len(recorded)!=64 or recorded!=digest:
+              raise SystemExit('Baseline SHA-256 differs: refusing to optimize')
+          with zipfile.ZipFile(archive) as z:
+              bad=z.testzip()
+              if bad:
+                  raise SystemExit('Corrupt baseline ZIP member: '+bad)
+              names=set(z.namelist())
+              for required in ('QuantumATi Studio.app/Contents/Info.plist',
+                               'QuantumATi Studio.app/Contents/Resources/app/product.json'):
+                  if required not in names:
+                      raise SystemExit('Baseline archive is missing '+required)
+          print('Verified original archive bytes:',archive.stat().st_size)
+          print('Verified original archive SHA-256:',digest)
+          PY
+          ditto -x -k baseline/QuantumATi-Studio-macOS-Intel-preview.zip extracted
+          test -x "extracted/QuantumATi Studio.app/Contents/MacOS/QuantumATi"
+          test -f "extracted/QuantumATi Studio.app/Contents/Resources/app/extensions/quantumati-control-center/extension.cjs"
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "extracted/QuantumATi Studio.app/Contents/Info.plist" | grep -Fx de.lordenryque.quantumati
+
+      - name: Recompress unmodified application with macOS PKZip level 9
+        shell: bash
+        run: |
+          set -euo pipefail
+          ditto -c -k --keepParent --zlibCompressionLevel 9             "extracted/QuantumATi Studio.app"             "compact/QuantumATi-Studio-macOS-Intel-compact.zip"
+          ditto -x -k "compact/QuantumATi-Studio-macOS-Intel-compact.zip" verified
+
+      - name: Compare every original file against repacked application and smoke-test CLI
+        shell: bash
+        id: sizes
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os,stat,hashlib,json
+          from pathlib import Path
+          original=Path('extracted/QuantumATi Studio.app')
+          verified=Path('verified/QuantumATi Studio.app')
+          def inventory(root):
+              entries={}
+              groups={}
+              maps=0
+              files=0
+              bytes_total=0
+              for base,dirs,names in os.walk(root,followlinks=False):
+                  for name in dirs+names:
+                      p=Path(base)/name
+                      rel=p.relative_to(root).as_posix()
+                      st=os.lstat(p)
+                      if stat.S_ISLNK(st.st_mode):
+                          entries[rel]=['symlink',os.readlink(p)]
+                      elif stat.S_ISDIR(st.st_mode):
+                          entries[rel]=['dir']
+                      elif stat.S_ISREG(st.st_mode):
+                          with p.open('rb') as f:
+                              sha=hashlib.file_digest(f,'sha256').hexdigest()
+                          entries[rel]=['file',st.st_size,st.st_mode & 0o777,sha]
+                          files+=1
+                          bytes_total+=st.st_size
+                          if rel.endswith('.map'):
+                              maps+=st.st_size
+                          parts=rel.split('/')
+                          group='/'.join(parts[:4]) if parts[:3]==['Contents','Resources','app'] else '/'.join(parts[:2])
+                          groups[group]=groups.get(group,0)+st.st_size
+                      else:
+                          entries[rel]=['special',stat.S_IFMT(st.st_mode)]
+              return entries,{'fileCount':files,'fileBytes':bytes_total,'sourceMapBytes':maps,
+                  'largestGroups':sorted(groups.items(),key=lambda v:-v[1])[:16]}
+          before,detail=inventory(original)
+          after,_=inventory(verified)
+          if before!=after:
+              lost=set(before)^set(after)
+              diff=[k for k in before.keys()&after.keys() if before[k]!=after[k]]
+              raise SystemExit('Repacked app differs. Missing: '+str(sorted(lost)[:6])+', changed: '+str(sorted(diff)[:6]))
+          baseline=Path('baseline/QuantumATi-Studio-macOS-Intel-preview.zip')
+          compact=Path('compact/QuantumATi-Studio-macOS-Intel-compact.zip')
+          with compact.open('rb') as f:
+              compact_sha=hashlib.file_digest(f,'sha256').hexdigest()
+          original_bytes=baseline.stat().st_size
+          compact_bytes=compact.stat().st_size
+          saved=original_bytes-compact_bytes
+          report={'scope':'macOS Intel preview, unmodified app bundle',
+              'sourceRunId':os.environ['BASELINE_RUN_ID'],
+              'baselineZipBytes':original_bytes,'compactZipBytes':compact_bytes,
+              'savedBytes':saved,'savedPercent':round(100*saved/original_bytes,3),
+              'appContentIdentical':True,'guiVerified':False,
+              'desktopSourceNotRequiredForRecompression':True,
+              'application':detail,'compactSha256':compact_sha}
+          Path('compact/footprint-report.json').write_text(json.dumps(report,indent=2)+'\n')
+          Path('compact/QuantumATi-Studio-macOS-Intel-compact.zip.sha256').write_text(
+              compact_sha+'  QuantumATi-Studio-macOS-Intel-compact.zip\n')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as f:
+              f.write('is_smaller='+('true' if saved>0 else 'false')+'\n')
+          print(json.dumps(report,indent=2))
+          PY
+          EXE="verified/QuantumATi Studio.app/Contents/MacOS/QuantumATi"
+          CLI="verified/QuantumATi Studio.app/Contents/Resources/app/out/cli.js"
+          test -f "$CLI"
+          ELECTRON_RUN_AS_NODE=1 "$EXE" "$CLI" --version
+          if codesign --verify --deep --strict "extracted/QuantumATi Studio.app" >/dev/null 2>&1; then
+            codesign --verify --deep --strict "verified/QuantumATi Studio.app"
+          else
+            echo "Baseline is unsigned or not fully code-signature verified; no signing claim."
+          fi
+          du -sk "verified/QuantumATi Studio.app"
+          ls -lh baseline/*.zip compact/*.zip
+
+      - name: Upload smaller distribution, only after parity and smoke test
+        if: steps.sizes.outputs.is_smaller == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuantumATi-Studio-macOS-Intel-compact
+          path: |
+            compact/QuantumATi-Studio-macOS-Intel-compact.zip
+            compact/QuantumATi-Studio-macOS-Intel-compact.zip.sha256
+            compact/footprint-report.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+
+      - name: Upload size report if level 9 does not improve on the original
+        if: steps.sizes.outputs.is_smaller != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuantumATi-macOS-footprint-no-benefit
+          path: compact/footprint-report.json
+          if-no-files-found: error
+          retention-days: 7
