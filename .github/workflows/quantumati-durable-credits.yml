@@ -1,0 +1,32 @@
+name: QuantumATi Durable Customer Credits
+on:
+  push:
+    branches:
+      - feature/quantumati-durable-credits-v1
+    paths:
+      - 'services/quantumati-ai-gateway/**'
+      - '.github/workflows/quantumati-durable-credits.yml'
+  pull_request:
+    branches:
+      - feature/quantumati-customer-premium-gateway-v1
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  durable-ledger-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check syntax
+        run: |
+          node --check services/quantumati-ai-gateway/durable-ledger.cjs
+          node --check services/quantumati-ai-gateway/gateway.cjs
+          node --check services/quantumati-ai-gateway/test/durable-ledger.test.cjs
+      - name: Run old and durable gateway tests
+        run: node --test services/quantumati-ai-gateway/test/*.test.cjs

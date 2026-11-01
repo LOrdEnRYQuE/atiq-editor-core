@@ -82,6 +82,9 @@ function createModelGateway({ledger,models,providers}={}){
    if(prev&&prev.signature!==signature)throw err('IDEMPOTENCY_CONFLICT');
    if(prev)return prev.promise;
   }
+  if(rec?.status==='RECOVERY_PENDING')throw err('REQUEST_PENDING_RECONCILIATION');
+  if(rec?.status==='DONE')return rec.result;
+  if(rec?.status==='FAILED')throw err(rec.result?.error||'PROVIDER_UNAVAILABLE');
   if(rec?.promise)return rec.promise;
   const run=async()=>{
    try{
