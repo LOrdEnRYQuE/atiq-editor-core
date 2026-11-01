@@ -61,6 +61,7 @@ function createDurableEntitlementLedger({filename,now=Date.now,verifyPayment}={}
    db.prepare('UPDATE requests SET status=?,result=? WHERE key=?').run(outcome==='SUCCESS'?'DONE':'FAILED',JSON.stringify(result),rec.key);
   });
  }
- return {applyVerifiedEvent,balance,available,reserve,settle,close(){db.close()}};
+ let closed=false;
+ return {applyVerifiedEvent,balance,available,reserve,settle,close(){if(!closed){db.close();closed=true}}};
 }
 module.exports={createDurableEntitlementLedger};
