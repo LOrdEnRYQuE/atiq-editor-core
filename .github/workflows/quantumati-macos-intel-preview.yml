@@ -1,0 +1,139 @@
+name: QuantumATi macOS Intel Preview Build
+
+on:
+  push:
+    branches:
+      - feature/quantumati-identity-quality-first-v1
+    paths:
+      - 'product.json'
+      - 'extensions/quantumati-control-center/**'
+      - '.github/workflows/quantumati-macos-intel-preview.yml'
+      - 'scripts/quantumati/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quantumati-macos-intel-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  macos-intel-preview:
+    runs-on: macos-15-intel
+    timeout-minutes: 100
+    env:
+      npm_config_arch: x64
+      VSCODE_ARCH: x64
+      ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
+      GYP_DEFINES: kerberos_use_rtld=false
+    steps:
+      - name: Checkout QuantumATi fork
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify fork and branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "${{ github.repository }}" = "LOrdEnRYQuE/atiq-editor-core"
+          test "${{ github.ref_name }}" = "feature/quantumati-identity-quality-first-v1"
+          test "$(node -p "require('./product.json').applicationName")" = quantumati
+          echo "Isolated QuantumATi fork / app ID verified"
+
+      - name: Select Node.js version from repository
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+
+      - name: Inspect available build space
+        run: |
+          node --version
+          npm --version
+          df -h .
+          sysctl -n hw.optional.x86_64
+
+      - name: Install pinned repository dependencies
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: npm ci --no-audit --no-fund
+
+      - name: Run QuantumATi extension and identity tests
+        run: node --test extensions/quantumati-control-center/test/*.test.cjs
+
+      - name: Build actual Intel macOS Electron application
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: npm run gulp vscode-darwin-x64
+
+      - name: Include the QuantumATi control-center extension
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="../VSCode-darwin-x64/QuantumATi Studio.app"
+          test -d "$APP/Contents/Resources/app/extensions"
+          TARGET="$APP/Contents/Resources/app/extensions/quantumati-control-center"
+          mkdir -p "$TARGET/ui"
+          cp extensions/quantumati-control-center/package.json "$TARGET/"
+          cp extensions/quantumati-control-center/*.cjs "$TARGET/"
+          cp extensions/quantumati-control-center/ui/*.js extensions/quantumati-control-center/ui/*.css "$TARGET/ui/"
+          test -f "$TARGET/extension.cjs"
+
+      - name: Verify built macOS bundle and inspect installed identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="../VSCode-darwin-x64/QuantumATi Studio.app"
+          test -x "$APP/Contents/MacOS/QuantumATi"
+          test -f "$APP/Contents/Resources/app/product.json"
+          test -f "$APP/Contents/Resources/app/LICENSE.txt"
+          test -f "$APP/Contents/Resources/app/extensions/quantumati-control-center/extension.cjs"
+          test "$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP/Contents/Info.plist")" = de.lordenryque.quantumati
+          node - "$APP/Contents/Resources/app/product.json" <<'NODE'
+          const fs=require('node:fs');
+          const assert=require('node:assert/strict');
+          const actual=JSON.parse(fs.readFileSync(process.argv[2],'utf8'));
+          assert.equal(actual.nameLong,'QuantumATi Studio');
+          assert.equal(actual.applicationName,'quantumati');
+          assert.equal(actual.urlProtocol,'quantumati');
+          assert.equal(actual.licenseName,'MIT');
+          console.log('Packaged identity and licensing verified');
+          NODE
+          file "$APP/Contents/MacOS/QuantumATi"
+
+      - name: Start packaged QuantumATi executable in CLI mode
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import subprocess
+          exe="../VSCode-darwin-x64/QuantumATi Studio.app/Contents/MacOS/QuantumATi"
+          completed=subprocess.run([exe,"--version"],capture_output=True,text=True,timeout=45)
+          print("Exit code:",completed.returncode)
+          print("STDOUT:",completed.stdout[:1500])
+          print("STDERR:",completed.stderr[:1500])
+          if completed.returncode != 0 or not completed.stdout.strip():
+              raise SystemExit("Packaged CLI launch failed")
+          PY
+
+      - name: Create preview archive preserving macOS app bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          APP="../VSCode-darwin-x64/QuantumATi Studio.app"
+          ditto -c -k --keepParent "$APP" "../QuantumATi-Studio-macOS-Intel-preview.zip"
+          unzip -l ../QuantumATi-Studio-macOS-Intel-preview.zip | grep -F 'QuantumATi Studio.app/Contents/Info.plist'
+          shasum -a 256 ../QuantumATi-Studio-macOS-Intel-preview.zip | tee ../QuantumATi-Studio-macOS-Intel-preview.sha256
+          ls -lh ../QuantumATi-Studio-macOS-Intel-preview.zip
+
+      - name: Upload verified preview package
+        uses: actions/upload-artifact@v4
+        with:
+          name: QuantumATi-Studio-macOS-Intel-preview
+          path: |
+            ../QuantumATi-Studio-macOS-Intel-preview.zip
+            ../QuantumATi-Studio-macOS-Intel-preview.sha256
+          if-no-files-found: error
+          retention-days: 7
