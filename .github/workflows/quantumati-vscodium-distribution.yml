@@ -6,6 +6,7 @@ on:
     paths:
       - 'product.json'
       - 'scripts/quantumati/**'
+      - 'extensions/quantumati-control-center/**'
       - '.github/workflows/quantumati-vscodium-distribution.yml'
   pull_request:
     branches:
@@ -13,6 +14,7 @@ on:
     paths:
       - 'product.json'
       - 'scripts/quantumati/**'
+      - 'extensions/quantumati-control-center/**'
       - '.github/workflows/quantumati-vscodium-distribution.yml'
   workflow_dispatch:
 permissions:
@@ -32,7 +34,9 @@ jobs:
           node-version: '22'
       - name: Check standalone distribution verifier syntax
         run: node --check scripts/quantumati/vscodium-distribution.cjs
-      - name: Test Open VSX distribution metadata
-        run: node --test scripts/quantumati/test/*.test.cjs
+      - name: Test Open VSX distribution metadata and editor integration
+        run: |
+          node --test scripts/quantumati/test/*.test.cjs
+          node --test extensions/quantumati-control-center/test/*.test.cjs
       - name: Assert repository Open VSX configuration (not release certification)
         run: node scripts/quantumati/vscodium-distribution.cjs product.json
