@@ -1,0 +1,37 @@
+name: QuantumATi Customer Premium Gateway Tests
+on:
+  push:
+    branches:
+      - feature/quantumati-customer-premium-gateway-v1
+    paths:
+      - 'services/quantumati-ai-gateway/**'
+      - '.github/workflows/quantumati-customer-premium-gateway.yml'
+  pull_request:
+    branches:
+      - feature/quantumati-vscodium-distribution-v1
+    paths:
+      - 'services/quantumati-ai-gateway/**'
+      - '.github/workflows/quantumati-customer-premium-gateway.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  gateway-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout isolated branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Syntax
+        run: |
+          node --check services/quantumati-ai-gateway/gateway.cjs
+          node --check services/quantumati-ai-gateway/server.cjs
+          node --check services/quantumati-ai-gateway/test/gateway.test.cjs
+      - name: Run gateway HTTP and policy tests
+        run: node --test services/quantumati-ai-gateway/test/*.test.cjs
