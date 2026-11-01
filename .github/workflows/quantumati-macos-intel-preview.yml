@@ -9,6 +9,14 @@ on:
       - 'extensions/quantumati-control-center/**'
       - '.github/workflows/quantumati-macos-intel-preview.yml'
       - 'scripts/quantumati/**'
+  pull_request:
+    branches:
+      - feature/quantumati-identity-quality-first-v1
+    paths:
+      - 'product.json'
+      - 'extensions/quantumati-control-center/**'
+      - '.github/workflows/quantumati-macos-intel-preview.yml'
+      - 'scripts/quantumati/**'
   workflow_dispatch:
 
 permissions:
