@@ -14,7 +14,8 @@
   "contributes": {
     "commands": [
       {"command":"quantumati.openControlCenter","title":"QuantumATi: Open Project Control Center"},
-      {"command":"quantumati.refreshControlCenter","title":"QuantumATi: Refresh Project Inspection"}
+      {"command":"quantumati.refreshControlCenter","title":"QuantumATi: Refresh Project Inspection"},
+      {"command":"quantumati.openExtensions","title":"QuantumATi: Browse Extensions (Open VSX)"}
     ]
   },
   "scripts": {"test":"node --test test/*.test.cjs"}

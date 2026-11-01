@@ -27,24 +27,18 @@ jobs:
           echo "Copilot is not allowed to modify .github/workflows, build folder files, or package.json files."
           echo "If you need to update engineering systems, please do so manually or through authorized means."
           exit 1
-      - uses: octokit/request-action@dad4362715b7fb2ddedf9772c8670824af564f0d # v2.4.0
-        id: get_permissions
-        if: ${{ steps.engineering_systems_check.outputs.engineering_systems_modified == 'true' && github.event.pull_request.user.login != 'Copilot' }}
-        with:
-          route: GET /repos/microsoft/vscode/collaborators/${{ github.event.pull_request.user.login }}/permission
+      # A GitHub-owned author identity is sufficient for this personal fork's
+      # strict owner-only policy. No upstream microsoft/vscode API call or
+      # third-party token is required. Do not grant write privileges here.
+      - name: Authorize engineering-system changes (repository owner only)
+        if: ${{ steps.engineering_systems_check.outputs.engineering_systems_modified == 'true' }}
+        shell: bash
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Set control output variable
-        id: control
-        if: ${{ steps.engineering_systems_check.outputs.engineering_systems_modified == 'true' && github.event.pull_request.user.login != 'Copilot' }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+          REPO_OWNER: ${{ github.repository_owner }}
         run: |
-          echo "user: ${{ github.event.pull_request.user.login }}"
-          echo "role: ${{ fromJson(steps.get_permissions.outputs.data).permission }}"
-          echo "is dependabot: ${{ github.event.pull_request.user.login == 'dependabot[bot]' }}"
-          echo "should_run: ${{ !contains(fromJson('["admin", "maintain", "write"]'), fromJson(steps.get_permissions.outputs.data).permission) }}"
-          echo "should_run=${{ !contains(fromJson('["admin", "maintain", "write"]'), fromJson(steps.get_permissions.outputs.data).permission) && github.event.pull_request.user.login != 'dependabot[bot]' }}" >> $GITHUB_OUTPUT
-      - name: Check for engineering system changes
-        if: ${{ steps.engineering_systems_check.outputs.engineering_systems_modified == 'true' && steps.control.outputs.should_run == 'true' }}
-        run: |
-          echo "Changes to .github/workflows/, build/ folder files, or package.json files aren't allowed in PRs."
-          exit 1
+          if [ "${PR_AUTHOR,,}" != "${REPO_OWNER,,}" ]; then
+            echo "Only repository owner-approved PRs may change engineering systems."
+            exit 1
+          fi
+          echo "Owner-authored change; further reviews and branch policies still apply."

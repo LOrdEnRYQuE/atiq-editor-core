@@ -1,0 +1,42 @@
+name: QuantumATi VSCodium Distribution Preflight
+on:
+  push:
+    branches:
+      - feature/quantumati-vscodium-distribution-v1
+    paths:
+      - 'product.json'
+      - 'scripts/quantumati/**'
+      - 'extensions/quantumati-control-center/**'
+      - '.github/workflows/quantumati-vscodium-distribution.yml'
+  pull_request:
+    branches:
+      - feature/quantumati-identity-quality-first-v1
+    paths:
+      - 'product.json'
+      - 'scripts/quantumati/**'
+      - 'extensions/quantumati-control-center/**'
+      - '.github/workflows/quantumati-vscodium-distribution.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  distribution-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout isolated QuantumATi branch
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check standalone distribution verifier syntax
+        run: node --check scripts/quantumati/vscodium-distribution.cjs
+      - name: Test Open VSX distribution metadata and editor integration
+        run: |
+          node --test scripts/quantumati/test/*.test.cjs
+          node --test extensions/quantumati-control-center/test/*.test.cjs
+      - name: Assert repository Open VSX configuration (not release certification)
+        run: node scripts/quantumati/vscodium-distribution.cjs product.json

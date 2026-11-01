@@ -6,11 +6,11 @@ const path = require('node:path');
 const extensionPath = path.join(__dirname, '../extension.cjs');
 
 function mockActivation(workspaceRoot = '/tmp/demo') {
- const cmds = new Map(), panels=[];
+ const cmds = new Map(), panels=[], executed=[];
  const vscode = {
   ViewColumn:{One:1},
   workspace:{workspaceFolders:workspaceRoot ? [{uri:{scheme:'file',fsPath:workspaceRoot}}] : []},
-  commands:{registerCommand:(name,cb)=>{cmds.set(name,cb);return {dispose(){cmds.delete(name)}}}},
+  commands:{registerCommand:(name,cb)=>{cmds.set(name,cb);return {dispose(){cmds.delete(name)}}},executeCommand:async name=>{executed.push(name)}},
   window:{createWebviewPanel:(id,title,column,options)=>{
     const p={id,title,column,options,revealed:0, disposed:false,
       webview:{html:'',listener:null,onDidReceiveMessage(cb){this.listener=cb;return {dispose(){}}}},
@@ -30,7 +30,7 @@ function mockActivation(workspaceRoot = '/tmp/demo') {
  try {delete require.cache[require.resolve(extensionPath)];extension=require(extensionPath)}
  finally {Module._load=original}
  const context={subscriptions:[]};extension.activate(context);
- return {cmds,panels,context,vscode};
+ return {cmds,panels,context,vscode,executed};
 }
 
 test('activates project control center automatically on startup',()=>{
@@ -68,4 +68,22 @@ test('refresh after close reopens project control center',()=>{
  panels[0].dispose();
  cmds.get('quantumati.refreshControlCenter')();
  assert.equal(panels.length,2);
+});
+
+test('native extensions command delegates to built-in workbench view',async()=>{
+ const {cmds,executed}=mockActivation();
+ assert.equal(typeof cmds.get('quantumati.openExtensions'),'function');
+ await cmds.get('quantumati.openExtensions')();
+ assert.deepEqual(executed,['workbench.view.extensions']);
+});
+test('webview only opens native extensions for current live panel',async()=>{
+ const {panels,cmds,executed}=mockActivation('/tmp/demo');
+ await panels[0].webview.listener({kind:'unsupportedCommand',name:'workbench.action.terminal.new'});
+ assert.deepEqual(executed,[]);
+ await panels[0].webview.listener({kind:'openExtensions'});
+ assert.deepEqual(executed,['workbench.view.extensions']);
+ const old=panels[0];old.dispose();
+ cmds.get('quantumati.openControlCenter')();
+ await old.webview.listener({kind:'openExtensions'});
+ assert.deepEqual(executed,['workbench.view.extensions']);
 });

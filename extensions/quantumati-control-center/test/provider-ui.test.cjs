@@ -19,3 +19,10 @@ test('existing sections remain navigable and untrusted names escaped',()=>{
  assert.doesNotMatch(html,/<script>alert\(1\)<\/script>/);
  assert.match(html,/&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
 });
+
+test('Extensions navigation exists without implying provider connectivity',()=>{
+ const html=renderDashboardHtml(context);
+ assert.match(html,/data-action="extensions"/);
+ assert.match(html,/Browse Extensions/);
+ assert.match(html,/NOT CONNECTED/);
+});
