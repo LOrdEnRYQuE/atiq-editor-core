@@ -153,17 +153,20 @@ jobs:
         run: |
           set -euo pipefail
           APP="../VSCode-darwin-x64/QuantumATi Studio.app"
-          ditto -c -k --keepParent "$APP" "../QuantumATi-Studio-macOS-Intel-preview.zip"
-          unzip -l ../QuantumATi-Studio-macOS-Intel-preview.zip | grep -F 'QuantumATi Studio.app/Contents/Info.plist'
-          shasum -a 256 ../QuantumATi-Studio-macOS-Intel-preview.zip | tee ../QuantumATi-Studio-macOS-Intel-preview.sha256
-          ls -lh ../QuantumATi-Studio-macOS-Intel-preview.zip
+          mkdir -p quantumati-preview-artifacts
+          ARCHIVE="quantumati-preview-artifacts/QuantumATi-Studio-macOS-Intel-preview.zip"
+          CHECKSUM="${ARCHIVE}.sha256"
+          ditto -c -k --keepParent "$APP" "$ARCHIVE"
+          unzip -l "$ARCHIVE" | grep -F 'QuantumATi Studio.app/Contents/Info.plist'
+          shasum -a 256 "$ARCHIVE" > "$CHECKSUM"
+          shasum -a 256 --check "$CHECKSUM"
+          ls -lh "$ARCHIVE" "$CHECKSUM"
 
       - name: Upload verified preview package
         uses: actions/upload-artifact@v4
         with:
           name: QuantumATi-Studio-macOS-Intel-preview
-          path: |
-            ../QuantumATi-Studio-macOS-Intel-preview.zip
-            ../QuantumATi-Studio-macOS-Intel-preview.sha256
+          path: quantumati-preview-artifacts/
           if-no-files-found: error
+          compression-level: 0
           retention-days: 7
