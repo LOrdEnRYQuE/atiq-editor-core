@@ -110,7 +110,25 @@ jobs:
           python3 - <<'PY'
           import subprocess
           exe="../VSCode-darwin-x64/QuantumATi Studio.app/Contents/MacOS/QuantumATi"
-          completed=subprocess.run([exe,"--version"],capture_output=True,text=True,timeout=45)
+          import os
+          from pathlib import Path
+          app_root=Path(exe).parents[1]/"Resources"/"app"
+          cli=app_root/"out"/"cli.js"
+          if not cli.is_file():
+              raise SystemExit("Packaged CLI entrypoint missing")
+          env=os.environ.copy()
+          env["ELECTRON_RUN_AS_NODE"]="1"
+          env.pop("VSCODE_IPC_HOOK_CLI",None)
+          # Directly launching the Electron GUI binary with --version can open
+          # a GUI process and hang on a headless macOS Actions runner.
+          # Run the packaged command-line entrypoint in Electron's Node mode.
+          try:
+              completed=subprocess.run(
+                  [exe,str(cli),"--version"],capture_output=True,text=True,
+                  timeout=45,env=env,stdin=subprocess.DEVNULL
+              )
+          except subprocess.TimeoutExpired as error:
+              raise SystemExit("Packaged CLI timed out: "+str(error)) from error
           print("Exit code:",completed.returncode)
           print("STDOUT:",completed.stdout[:1500])
           print("STDERR:",completed.stderr[:1500])
