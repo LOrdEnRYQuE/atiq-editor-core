@@ -58,7 +58,7 @@ test('duplicate payment event after restart does not double-credit and conflicti
  const l2=f.open();
  assert.equal((await l2.applyVerifiedEvent(value)).status,'ACTIVE');
  assert.equal(l2.balance('tenant-a'),2);
- await assert.rejects(l2.applyVerifiedEvent({...value,units:5}),{code:'PAYMENT_NOT_VERIFIED'});
+ await assert.rejects(l2.applyVerifiedEvent({...value,units:5}),{code:'EVENT_CONFLICT'});
  assert.equal(l2.balance('tenant-a'),2);
  const newEvent={...value,eventId:'evt-other'};f.approved.add(newEvent.eventId);
  await assert.rejects(l2.applyVerifiedEvent(newEvent),{code:'PURCHASE_CONFLICT'});
