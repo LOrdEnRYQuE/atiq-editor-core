@@ -47,7 +47,11 @@ jobs:
         run: |
           set -euo pipefail
           test "${{ github.repository }}" = "LOrdEnRYQuE/atiq-editor-core"
-          test "${{ github.ref_name }}" = "feature/quantumati-identity-quality-first-v1"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            test "${{ github.base_ref }}" = "feature/quantumati-identity-quality-first-v1"
+          else
+            test "${{ github.ref_name }}" = "feature/quantumati-identity-quality-first-v1"
+          fi
           test "$(node -p "require('./product.json').applicationName")" = quantumati
           echo "Isolated QuantumATi fork / app ID verified"
 
